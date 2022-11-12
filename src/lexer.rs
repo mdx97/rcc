@@ -4,7 +4,7 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 /// A lexical token
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Token {
     Keyword(Keyword),
     Identifier(String),
@@ -13,25 +13,29 @@ pub enum Token {
 }
 
 /// A keyword (`int`, `return`, `void`, etc)
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Keyword {
+    Char,
     Int,
+    Void,
 }
 
 /// A literal value (420, "hello world", etc)
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Literal {
     Integer(i64),
     String(String),
 }
 
 /// A symbol (parentheses, brackets, etc)
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Symbol {
+    Equals,
     ParenOpen,
     ParenClose,
     BracketOpen,
     BracketClose,
+    SemiColon,
     SquareBracketOpen,
     SquareBracketClose,
 }
@@ -57,7 +61,9 @@ impl Token {
     /// Try to parse the current contents of the `lexer`s buffer into a [`Token`].
     fn parse(lexer: &Lexer) -> LexResult<Token> {
         match lexer.buffer.as_str() {
+            "char" => Ok(Token::Keyword(Keyword::Char)),
             "int" => Ok(Token::Keyword(Keyword::Int)),
+            "void" => Ok(Token::Keyword(Keyword::Void)),
             _ => Err(LexError::InvalidToken {
                 token: lexer.buffer.clone(),
                 column: lexer.column - lexer.buffer.len() as u64,
@@ -114,7 +120,11 @@ impl Lexer {
 
 /// Perform lexical analysis on the given file.
 pub fn lex(file: PathBuf) -> LexResult<Vec<Token>> {
-    let contents = read_to_string(file)?;
+    lex_contents(read_to_string(file)?)
+}
+
+/// Perform lexical analysis on the given file contents.
+fn lex_contents(contents: String) -> LexResult<Vec<Token>> {
     let mut state = Lexer::new();
 
     for c in contents.chars() {
@@ -130,4 +140,54 @@ pub fn lex(file: PathBuf) -> LexResult<Vec<Token>> {
 
     state.finalize()?;
     Ok(state.tokens)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_lex_single(string: &str, token: Token) {
+        let result = lex_contents(string.to_string());
+        assert!(
+            result.is_ok(),
+            "lexical analysis returned non-OK result for '{}' and should have returned a single token {:?} ({:?})",
+            string,
+            token,
+            result.unwrap_err(),
+        );
+        assert_eq!(result.unwrap(), vec![token]);
+    }
+
+    fn test_lex(string: &str, tokens: Vec<Token>) {
+        let result = lex_contents(string.to_string());
+        assert!(
+            result.is_ok(),
+            "lexical analysis returned non-OK result for '{}' and should have returned a list of tokens {:?} ({:?})",
+            string,
+            tokens,
+            result.unwrap_err(),
+        );
+        assert_eq!(result.unwrap(), tokens);
+    }
+
+    #[test]
+    fn lexical_analysis_works_on_single_tokens() {
+        test_lex_single("char", Token::Keyword(Keyword::Char));
+        test_lex_single("int", Token::Keyword(Keyword::Int));
+        test_lex_single("void", Token::Keyword(Keyword::Void));
+    }
+
+    #[test]
+    fn lexical_analysis_works_on_assignment_to_literal() {
+        test_lex(
+            "int foo = 5;",
+            vec![
+                Token::Keyword(Keyword::Int),
+                Token::Identifier("foo".to_string()),
+                Token::Symbol(Symbol::Equals),
+                Token::Literal(Literal::Integer(5)),
+                Token::Symbol(Symbol::SemiColon),
+            ],
+        )
+    }
 }
