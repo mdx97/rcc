@@ -4,8 +4,10 @@ mod lexer;
 use std::path::PathBuf;
 
 use clap::{Arg, ArgAction, Command};
-use fatal::Fatal;
+use fatal::{fatal, Fatal};
 use lexer::lex;
+
+use crate::fatal::FatalOptions;
 
 fn main() {
     let matches = Command::new("rcc")
@@ -25,13 +27,7 @@ fn main() {
 
     // TEMP: Just lex the first file for now.
     let file = files.into_iter().next().unwrap();
-    let tokens = lex(file)
-        .map_err(|error| {
-            Fatal::new(error.to_string())
-                .with_prefix_specifier(Some("lexer".to_string()))
-                .exit();
-        })
-        .unwrap();
+    let tokens = lex(file).fatal(FatalOptions::default().with_specifier("lexer"));
 
     println!("TOKENS: {:?}", tokens);
 }
@@ -46,13 +42,10 @@ fn validate_files(files: &Vec<String>) -> Vec<PathBuf> {
             path.push(file);
 
             if !path.exists() {
-                Fatal::new(format!("No file found with the name \"{}\"!", file)).exit();
+                fatal(format!("no file found with the name {}", file).into());
             }
             if !file.ends_with(".c") {
-                Fatal::new(format!(
-                    "File with the name \"{}\" does not end with \".c\"!",
-                    file
-                ));
+                fatal(format!("file with the name {} does not end with .c", file).into());
             }
             path
         })
