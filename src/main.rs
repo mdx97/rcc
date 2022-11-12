@@ -36,8 +36,8 @@ fn main() {
     println!("TOKENS: {:?}", tokens);
 }
 
-/// Validate that the given list of source files can be compiled and return them
-/// as a list of [`PathBuf`]s.
+/// Validate that the given list of source file names can be compiled and return
+/// them as a list of [`PathBuf`]s.
 fn validate_files(files: &Vec<String>) -> Vec<PathBuf> {
     files
         .iter()

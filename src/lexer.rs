@@ -34,10 +34,10 @@ pub enum Symbol {
     SquareBracketClose,
 }
 
-/// The [`Result`] of calling the [`lex`] function.
+/// Type alias for a [`Result`] with an error of type [`LexError`].
 pub type LexResult<T> = Result<T, LexError>;
 
-/// An error that could be produced by the [`lex`] function.
+/// An error that could be produced during lexical analysis.
 #[derive(thiserror::Error, Debug)]
 pub enum LexError {
     #[error("invalid token encountered at line {line}, column {column}: {token}")]
@@ -52,7 +52,7 @@ pub enum LexError {
 }
 
 impl Token {
-    /// Parse the current contents of the buffer into a [`Token`].
+    /// Try to parse the current contents of the `lexer`s buffer into a [`Token`].
     fn parse(lexer: &Lexer) -> LexResult<Token> {
         match lexer.buffer.as_str() {
             "int" => Ok(Token::Keyword(Keyword::Int)),
@@ -65,7 +65,7 @@ impl Token {
     }
 }
 
-/// Tracks state for a run of the [`lex`] function.
+/// Tracks state for a lexical analysis run.
 struct Lexer {
     buffer: String,
     column: u64,
@@ -84,24 +84,24 @@ impl Lexer {
         }
     }
 
-    /// Try to parse a new token with the contents of the buffer and then clear it.
+    /// Try to parse a new [`Token`] with the contents of the `buffer` and then clear it.
     fn pop(&mut self) -> LexResult<()> {
         self.tokens.push(Token::parse(self)?);
         self.buffer.clear();
         Ok(())
     }
 
-    /// Add a character to the buffer.
-    fn push(&mut self, c: char) {
-        self.buffer.push(c);
+    /// Add the `character` to the buffer.
+    fn push(&mut self, character: char) {
+        self.buffer.push(character);
         self.column += 1;
-        if c == '\n' {
+        if character == '\n' {
             self.column = 0;
             self.line += 1;
         }
     }
 
-    /// Try to parse what remains in the buffer before lexical analysis is done.
+    /// Try to parse what remains in the buffer so lexical analysis can finish.
     fn finalize(&mut self) -> LexResult<()> {
         if !self.buffer.is_empty() {
             self.pop()?;
