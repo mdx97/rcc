@@ -3,6 +3,8 @@
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
+use regex::Regex;
+
 /// A lexical token
 #[derive(Debug, Eq, PartialEq)]
 pub enum Token {
@@ -15,14 +17,47 @@ pub enum Token {
 /// A keyword (`int`, `return`, `void`, etc)
 #[derive(Debug, Eq, PartialEq)]
 pub enum Keyword {
+    Auto,
+    Break,
+    Case,
     Char,
+    Const,
+    Continue,
+    Default,
+    Do,
+    Double,
+    Else,
+    Enum,
+    Extern,
+    Float,
+    For,
+    Goto,
+    If,
+    Inline,
     Int,
+    Long,
+    Nullptr,
+    Register,
+    Restrict,
+    Return,
+    Short,
+    Signed,
+    Sizeof,
+    Static,
+    Struct,
+    Switch,
+    Typedef,
+    Union,
+    Unsigned,
     Void,
+    Volatile,
+    While,
 }
 
 /// A literal value (420, "hello world", etc)
 #[derive(Debug, Eq, PartialEq)]
 pub enum Literal {
+    Char(char),
     Integer(i64),
     String(String),
 }
@@ -30,12 +65,17 @@ pub enum Literal {
 /// A symbol (parentheses, brackets, etc)
 #[derive(Debug, Eq, PartialEq)]
 pub enum Symbol {
-    Equals,
-    ParenOpen,
-    ParenClose,
+    Ampersand,
+    Asterisk,
     BracketOpen,
     BracketClose,
-    SemiColon,
+    Comma,
+    Colon,
+    Equals,
+    Hash,
+    ParenOpen,
+    ParenClose,
+    Semicolon,
     SquareBracketOpen,
     SquareBracketClose,
 }
@@ -60,17 +100,109 @@ pub enum LexError {
 impl Token {
     /// Try to parse the current contents of the `lexer`s buffer into a [`Token`].
     fn parse(lexer: &Lexer) -> LexResult<Token> {
-        match lexer.buffer.as_str() {
-            "char" => Ok(Token::Keyword(Keyword::Char)),
-            "int" => Ok(Token::Keyword(Keyword::Int)),
-            "void" => Ok(Token::Keyword(Keyword::Void)),
-            _ => Err(LexError::InvalidToken {
-                token: lexer.buffer.clone(),
-                column: lexer.column - lexer.buffer.len() as u64,
-                line: lexer.line,
-            }),
-        }
+        Ok(match lexer.buffer.as_str() {
+            "auto" => Token::Keyword(Keyword::Auto),
+            "break" => Token::Keyword(Keyword::Break),
+            "case" => Token::Keyword(Keyword::Case),
+            "char" => Token::Keyword(Keyword::Char),
+            "const" => Token::Keyword(Keyword::Const),
+            "continue" => Token::Keyword(Keyword::Continue),
+            "default" => Token::Keyword(Keyword::Default),
+            "do" => Token::Keyword(Keyword::Do),
+            "double" => Token::Keyword(Keyword::Double),
+            "else" => Token::Keyword(Keyword::Else),
+            "enum" => Token::Keyword(Keyword::Enum),
+            "extern" => Token::Keyword(Keyword::Extern),
+            "float" => Token::Keyword(Keyword::Float),
+            "for" => Token::Keyword(Keyword::For),
+            "goto" => Token::Keyword(Keyword::Goto),
+            "if" => Token::Keyword(Keyword::If),
+            "inline" => Token::Keyword(Keyword::Inline),
+            "int" => Token::Keyword(Keyword::Int),
+            "long" => Token::Keyword(Keyword::Long),
+            "nullptr" => Token::Keyword(Keyword::Nullptr),
+            "register" => Token::Keyword(Keyword::Register),
+            "restrict" => Token::Keyword(Keyword::Restrict),
+            "return" => Token::Keyword(Keyword::Return),
+            "short" => Token::Keyword(Keyword::Short),
+            "signed" => Token::Keyword(Keyword::Signed),
+            "sizeof" => Token::Keyword(Keyword::Sizeof),
+            "static" => Token::Keyword(Keyword::Static),
+            "struct" => Token::Keyword(Keyword::Struct),
+            "switch" => Token::Keyword(Keyword::Switch),
+            "typedef" => Token::Keyword(Keyword::Typedef),
+            "union" => Token::Keyword(Keyword::Union),
+            "unsigned" => Token::Keyword(Keyword::Unsigned),
+            "void" => Token::Keyword(Keyword::Void),
+            "volatile" => Token::Keyword(Keyword::Volatile),
+            "while" => Token::Keyword(Keyword::While),
+            "&" => Token::Symbol(Symbol::Ampersand),
+            "*" => Token::Symbol(Symbol::Asterisk),
+            "{" => Token::Symbol(Symbol::BracketOpen),
+            "}" => Token::Symbol(Symbol::BracketClose),
+            "," => Token::Symbol(Symbol::Comma),
+            ":" => Token::Symbol(Symbol::Colon),
+            "=" => Token::Symbol(Symbol::Equals),
+            "#" => Token::Symbol(Symbol::Hash),
+            "(" => Token::Symbol(Symbol::ParenOpen),
+            ")" => Token::Symbol(Symbol::ParenClose),
+            ";" => Token::Symbol(Symbol::Semicolon),
+            "[" => Token::Symbol(Symbol::SquareBracketOpen),
+            "]" => Token::Symbol(Symbol::SquareBracketClose),
+            _ => {
+                if let Some(literal) = valid_literal(lexer.buffer.as_str()) {
+                    return Ok(literal);
+                }
+                if let Some(ident) = valid_identifier(lexer.buffer.as_str()) {
+                    return Ok(ident);
+                }
+
+                return Err(LexError::InvalidToken {
+                    token: lexer.buffer.clone(),
+                    column: lexer.column - lexer.buffer.len() as u64,
+                    line: lexer.line,
+                });
+            }
+        })
     }
+}
+
+fn valid_literal(string: &str) -> Option<Token> {
+    valid_integer_literal(string)
+        .or(valid_string_literal(string))
+        .or(valid_char_literal(string))
+}
+
+fn valid_integer_literal(string: &str) -> Option<Token> {
+    const PATTERN: &str = "[0-9]+";
+    Regex::new(PATTERN)
+        .unwrap()
+        .is_match(string)
+        .then(|| Token::Literal(Literal::Integer(string.parse().unwrap())))
+}
+
+fn valid_string_literal(string: &str) -> Option<Token> {
+    const PATTERN: &str = "\".*\"";
+    Regex::new(PATTERN)
+        .unwrap()
+        .is_match(string)
+        .then_some(Token::Literal(Literal::String(string.into())))
+}
+
+fn valid_char_literal(string: &str) -> Option<Token> {
+    const PATTERN: &str = "'.*'";
+    Regex::new(PATTERN)
+        .unwrap()
+        .is_match(string)
+        .then(|| Token::Literal(Literal::Char(string.parse().unwrap())))
+}
+
+fn valid_identifier(string: &str) -> Option<Token> {
+    const PATTERN: &str = "[a-zA-Z][a-zA-Z0-9]*";
+    Regex::new(PATTERN)
+        .unwrap()
+        .is_match(string)
+        .then_some(Token::Identifier(string.into()))
 }
 
 /// Tracks state for a lexical analysis run.
@@ -79,6 +211,12 @@ struct Lexer {
     column: u64,
     line: u64,
     tokens: Vec<Token>,
+    context: LexerContext,
+}
+
+enum LexerContext {
+    Normal,
+    InString,
 }
 
 impl Lexer {
@@ -89,21 +227,56 @@ impl Lexer {
             column: 0,
             line: 1,
             tokens: Vec::new(),
+            context: LexerContext::Normal,
         }
+    }
+
+    /// Process a character.
+    fn process(&mut self, c: char) -> LexResult<()> {
+        match self.context {
+            LexerContext::Normal => {
+                if c == ' ' || c == '\n' {
+                    self.pop()?;
+                } else if c == '(' || c == ')' || c == '{' || c == '}' || c == ';' || c == '*' {
+                    self.pop()?;
+                    self.push(c);
+                    self.pop()?;
+                } else if c == '"' {
+                    self.context = LexerContext::InString;
+                } else {
+                    self.push(c);
+                }
+            }
+            LexerContext::InString => {
+                if c == '"' {
+                    if self.buffer.len() > 0 {
+                        self.tokens
+                            .push(Token::Literal(Literal::String(self.buffer.clone())));
+                        self.buffer.clear();
+                    }
+                    self.context = LexerContext::Normal;
+                } else {
+                    self.push(c);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Try to parse a new [`Token`] with the contents of the `buffer` and then clear it.
     fn pop(&mut self) -> LexResult<()> {
-        self.tokens.push(Token::parse(self)?);
-        self.buffer.clear();
+        if self.buffer.len() > 0 {
+            self.tokens.push(Token::parse(self)?);
+            self.buffer.clear();
+        }
         Ok(())
     }
 
     /// Add the `character` to the buffer.
-    fn push(&mut self, character: char) {
-        self.buffer.push(character);
+    fn push(&mut self, c: char) {
+        self.buffer.push(c);
         self.column += 1;
-        if character == '\n' {
+        if c == '\n' {
             self.column = 0;
             self.line += 1;
         }
@@ -125,21 +298,13 @@ pub fn lex(file: PathBuf) -> LexResult<Vec<Token>> {
 
 /// Perform lexical analysis on the given file contents.
 fn lex_contents(contents: String) -> LexResult<Vec<Token>> {
-    let mut state = Lexer::new();
-
+    let mut lexer = Lexer::new();
     for c in contents.chars() {
-        if c == ' ' || c == '\n' {
-            state.pop()?;
-        } else if c == '(' {
-            state.pop()?;
-            state.push(c);
-        } else {
-            state.push(c);
-        }
+        lexer.process(c)?;
     }
 
-    state.finalize()?;
-    Ok(state.tokens)
+    lexer.finalize()?;
+    Ok(lexer.tokens)
 }
 
 #[cfg(test)]
@@ -171,22 +336,55 @@ mod tests {
     }
 
     #[test]
-    fn lexical_analysis_works_on_single_tokens() {
-        test_lex_single("char", Token::Keyword(Keyword::Char));
-        test_lex_single("int", Token::Keyword(Keyword::Int));
-        test_lex_single("void", Token::Keyword(Keyword::Void));
-    }
-
-    #[test]
-    fn lexical_analysis_works_on_assignment_to_literal() {
+    fn lexical_analysis_works_on_assignment_to_integer_literal() {
         test_lex(
             "int foo = 5;",
             vec![
                 Token::Keyword(Keyword::Int),
-                Token::Identifier("foo".to_string()),
+                Token::Identifier("foo".into()),
                 Token::Symbol(Symbol::Equals),
                 Token::Literal(Literal::Integer(5)),
-                Token::Symbol(Symbol::SemiColon),
+                Token::Symbol(Symbol::Semicolon),
+            ],
+        );
+    }
+
+    #[test]
+    fn lexical_analysis_works_on_assignemnt_to_string_literal() {
+        test_lex(
+            r#"const char *string = "Hello world and all who inhabit it!";"#,
+            vec![
+                Token::Keyword(Keyword::Const),
+                Token::Keyword(Keyword::Char),
+                Token::Symbol(Symbol::Asterisk),
+                Token::Identifier("string".into()),
+                Token::Symbol(Symbol::Equals),
+                Token::Literal(Literal::String(
+                    "Hello world and all who inhabit it!".into(),
+                )),
+                Token::Symbol(Symbol::Semicolon),
+            ],
+        );
+    }
+
+    #[test]
+    fn lexical_analysis_works_on_function_declaration() {
+        test_lex(
+            r#"
+            int main() {
+                return 0;
+            }
+            "#,
+            vec![
+                Token::Keyword(Keyword::Int),
+                Token::Identifier("main".into()),
+                Token::Symbol(Symbol::ParenOpen),
+                Token::Symbol(Symbol::ParenClose),
+                Token::Symbol(Symbol::BracketOpen),
+                Token::Keyword(Keyword::Return),
+                Token::Literal(Literal::Integer(0)),
+                Token::Symbol(Symbol::Semicolon),
+                Token::Symbol(Symbol::BracketClose),
             ],
         )
     }
