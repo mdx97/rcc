@@ -21,7 +21,7 @@ impl FatalOptions {
     ///
     /// Example - PREFIX: <message>
     #[allow(dead_code)]
-    pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
+    pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
         self.prefix = prefix.into();
         self
     }
@@ -29,7 +29,7 @@ impl FatalOptions {
     /// Adds a specifier to the error message.
     ///
     /// Example - error(SPECIFIER): <message>
-    pub fn with_specifier(mut self, specifier: impl Into<String>) -> Self {
+    pub fn specifier(mut self, specifier: impl Into<String>) -> Self {
         self.specifier = Some(specifier.into());
         self
     }

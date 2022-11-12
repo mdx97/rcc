@@ -27,7 +27,7 @@ fn main() {
 
     // TEMP: Just lex the first file for now.
     let file = files.into_iter().next().unwrap();
-    let tokens = lex(file).fatal(FatalOptions::default().with_specifier("lexer"));
+    let tokens = lex(file).fatal(FatalOptions::default().specifier("lexer"));
 
     println!("TOKENS: {:?}", tokens);
 }
