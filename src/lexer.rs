@@ -167,6 +167,10 @@ impl Token {
     }
 }
 
+fn if_valid(string: &str, pattern: &str, f: impl Fn() -> Token) -> Option<Token> {
+    Regex::new(pattern).unwrap().is_match(string).then(f)
+}
+
 fn valid_literal(string: &str) -> Option<Token> {
     valid_integer_literal(string)
         .or(valid_string_literal(string))
@@ -175,34 +179,28 @@ fn valid_literal(string: &str) -> Option<Token> {
 
 fn valid_integer_literal(string: &str) -> Option<Token> {
     const PATTERN: &str = "[0-9]+";
-    Regex::new(PATTERN)
-        .unwrap()
-        .is_match(string)
-        .then(|| Token::Literal(Literal::Integer(string.parse().unwrap())))
+    if_valid(string, PATTERN, || {
+        Token::Literal(Literal::Integer(string.parse().unwrap()))
+    })
 }
 
 fn valid_string_literal(string: &str) -> Option<Token> {
     const PATTERN: &str = "\".*\"";
-    Regex::new(PATTERN)
-        .unwrap()
-        .is_match(string)
-        .then_some(Token::Literal(Literal::String(string.into())))
+    if_valid(string, PATTERN, || {
+        Token::Literal(Literal::String(string.into()))
+    })
 }
 
 fn valid_char_literal(string: &str) -> Option<Token> {
     const PATTERN: &str = "'.*'";
-    Regex::new(PATTERN)
-        .unwrap()
-        .is_match(string)
-        .then(|| Token::Literal(Literal::Char(string.parse().unwrap())))
+    if_valid(string, PATTERN, || {
+        Token::Literal(Literal::Char(string.parse().unwrap()))
+    })
 }
 
 fn valid_identifier(string: &str) -> Option<Token> {
     const PATTERN: &str = "[a-zA-Z][a-zA-Z0-9]*";
-    Regex::new(PATTERN)
-        .unwrap()
-        .is_match(string)
-        .then_some(Token::Identifier(string.into()))
+    if_valid(string, PATTERN, || Token::Identifier(string.into()))
 }
 
 /// Tracks state for a lexical analysis run.
