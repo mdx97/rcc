@@ -235,7 +235,7 @@ impl Lexer {
             LexerContext::Normal => {
                 if c == ' ' || c == '\n' {
                     self.pop()?;
-                } else if c == '(' || c == ')' || c == '{' || c == '}' || c == ';' || c == '*' {
+                } else if ['(', ')', '{', '}', '[', ']', ';', '*', '#'].contains(&c) {
                     self.pop()?;
                     self.push(c);
                     self.pop()?;
